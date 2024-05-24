@@ -1,10 +1,9 @@
 import pandas as pd
 import plotly.graph_objects as go
-from dash import Dash, html, dcc, Input, Output, exceptions, State
+from dash import Dash, html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import dash_daq as daq
-import numpy as np
 from PIL import Image
 import os
 
@@ -423,7 +422,6 @@ def update_player_card(selected_team, selected_players, highlighted_player):
     return fig
 
 
-
 @app.callback(
     Output('radar-chart', 'figure'),
     [Input('team-dropdown', 'value'),
@@ -513,7 +511,7 @@ def update_radar_chart(selected_team, selected_players, highlighted_player):
 )
 def update_metric_dropdowns(selected_position):
     if selected_position:
-        available_metrics = df[df['position'] == selected_position].columns[4:].tolist()
+        available_metrics = df[df['position'].isin(selected_position)].columns[4:].tolist()
         options = [{'label': metric, 'value': metric} for metric in available_metrics]
     else:
         options = [{'label': col, 'value': col} for col in df.columns[4:]]
@@ -521,16 +519,30 @@ def update_metric_dropdowns(selected_position):
 
 
 @app.callback(
+    Output('position-dropdown', 'options'),
+    Input('team-dropdown-2', 'value')
+)
+def update_position_dropdown(selected_teams):
+    filtered_df = df.copy()
+    if selected_teams:
+        filtered_df = filtered_df[filtered_df['team'].isin(selected_teams)]
+
+    position_options = [{'label': position, 'value': position} for position in
+                        filtered_df['position'].dropna().unique()]
+    return position_options
+
+
+@app.callback(
     Output('player-dropdown-2', 'options'),
     [Input('team-dropdown-2', 'value'),
      Input('position-dropdown', 'value')]
 )
-def update_player_dropdown(selected_teams, selected_position):
+def update_player_dropdown(selected_teams, selected_positions):
     filtered_df = df.copy()
     if selected_teams:
         filtered_df = filtered_df[filtered_df['team'].isin(selected_teams)]
-    if selected_position:
-        filtered_df = filtered_df[filtered_df['position'] == selected_position]
+    if selected_positions:
+        filtered_df = filtered_df[filtered_df['position'].isin(selected_positions)]
 
     player_options = [{'label': player, 'value': player} for player in filtered_df['player'].dropna().unique()]
     return player_options
@@ -567,7 +579,7 @@ def update_scatter_plot(selected_teams, selected_positions, selected_players, se
     if selected_teams:
         filtered_df = filtered_df[filtered_df['team'].isin(selected_teams)]
     if selected_positions:
-        filtered_df = filtered_df[filtered_df['position'] == selected_positions]
+        filtered_df = filtered_df[filtered_df['position'].isin(selected_positions)]
 
     color_map = {'All Players': 'lightblue'}
     colors = px.colors.qualitative.Set1
@@ -624,10 +636,11 @@ def update_scatter_plot(selected_teams, selected_positions, selected_players, se
      Input('scatter-plot', 'selectedData')],
     [State('player-dropdown-2', 'value')]
 )
-def update_player_dropdown(clickData, selectedData, selected_players):
+def update_selected_players(clickData, selectedData, selected_players):
     if selected_players is None:
         selected_players = []
 
+    # Handle clickData
     if clickData is not None:
         clicked_player = clickData['points'][0]['hovertext']
         if clicked_player in selected_players:
@@ -635,6 +648,7 @@ def update_player_dropdown(clickData, selectedData, selected_players):
         else:
             selected_players.append(clicked_player)
 
+    # Handle selectedData
     if selectedData is not None:
         for point in selectedData['points']:
             selected_player = point['hovertext']
@@ -655,11 +669,6 @@ def update_player_dropdown(clickData, selectedData, selected_players):
 )
 def update_bar_chart(selected_teams, selected_positions, selected_players, selected_metric_x, selected_metric_y,
                      barmode):
-    # if not selected_players:
-    #     return px.bar(title=f'{selected_metric_x} vs. {selected_metric_y}')
-    #
-    # if selected_metric_x not in df.columns or selected_metric_y not in df.columns:
-    #     return px.bar(title=f'Invalid metrics selected for x or y axis')
     if not selected_players:
         return go.Figure(layout=go.Layout(
             title='Select players to see the bar chart',
@@ -682,7 +691,7 @@ def update_bar_chart(selected_teams, selected_positions, selected_players, selec
     if selected_teams:
         filtered_df = filtered_df[filtered_df['team'].isin(selected_teams)]
     if selected_positions:
-        filtered_df = filtered_df[filtered_df['position'] == selected_positions]
+        filtered_df = filtered_df[filtered_df['position'].isin(selected_positions)]
     if selected_players:
         filtered_df = filtered_df[filtered_df['player'].isin(selected_players)]
 
@@ -717,4 +726,23 @@ def update_bar_chart(selected_teams, selected_positions, selected_players, selec
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True, port=8047)
+    app.run_server(debug=True, port=8068)
+
+import threading
+from IPython.display import display, HTML
+
+
+# Function to run the Dash app
+def run_dash():
+    app.run_server(debug=False, use_reloader=False, port=8068)
+
+
+# Start the Dash app in a separate thread
+threading.Thread(target=run_dash).start()
+
+# Display the link to open the app in the browser
+display(HTML(f"""
+    <a href="http://127.0.0.1:8068/" target="_blank">
+        Open Dash App
+    </a>
+"""))
