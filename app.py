@@ -728,21 +728,4 @@ def update_bar_chart(selected_teams, selected_positions, selected_players, selec
 if __name__ == '__main__':
     app.run_server(debug=True, port=8068)
 
-import threading
-from IPython.display import display, HTML
 
-
-# Function to run the Dash app
-def run_dash():
-    app.run_server(debug=False, use_reloader=False, port=8068)
-
-
-# Start the Dash app in a separate thread
-threading.Thread(target=run_dash).start()
-
-# Display the link to open the app in the browser
-display(HTML(f"""
-    <a href="http://127.0.0.1:8068/" target="_blank">
-        Open Dash App
-    </a>
-"""))
